@@ -216,7 +216,8 @@ class TestCase(object):
             p.save_streams(prefix)
     
     def delay(self, t):
-        logger.debug('sleeping for {} seconds'.format(t))
+        scale = '' if delay == 1 else ' (scaled to '+str(t*delay)+')'
+        logger.debug('sleeping for {} seconds{}'.format(t, scale))
         time.sleep(t*delay)
 
     def assert_stdout_matches_file(self, proc, f):
@@ -400,6 +401,8 @@ def main():
     print()
     if save:
         print(Colour.OKGREEN+'output saved:'+Colour.ENDC, 'test outputs are saved to testres folder.\n')
+    if list_:
+        print(Colour.OKBLUE+'list tests:'+Colour.ENDC, 'tests displayed. no tests were run.\n')
     print('ran', passed+failed, 'tests in', round(time.time()-start, 2), 'seconds.',
             'passed:', str(passed)+',', 'failed:', str(failed)+'.')
     print(Colour.ORANGE+'warning:',
