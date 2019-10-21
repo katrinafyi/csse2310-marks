@@ -80,9 +80,10 @@ class TestProcess(object):
             log.append(line)
 
     def __init__(self, i, args, stdin):
-        logger.debug('starting process {} with stdin {}'
-                .format(i, repr(stdin)))
-        logger.debug('    cmd: {}'.format(args))
+        stdin_str = (' < ' + quote(stdin)) if stdin else ''
+        logger.debug('starting process {} with stdin {}, cmd:'
+                .format(i, repr(stdin))
+                + '\n    ' + ' '.join(quote(a) for a in args) + stdin_str)
 
         if stdin:
             stdin = open(stdin, 'r')
