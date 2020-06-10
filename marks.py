@@ -24,6 +24,7 @@ import time
 import logging
 import signal
 import datetime
+import threading
 
 from pprint import pprint
 import warnings
@@ -38,6 +39,7 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
 delay = 1 # delay time coefficient
+timeout = 0.0
 
 class Colour:
     HEADER = '\033[95m'
@@ -246,6 +248,24 @@ def marks(category=None, category_marks=0):
         return f;
     return wrapper
 
+def log_exceptions(f):
+    def wrapped():
+        try:
+            f()
+        except Exception as e:
+            logger.critical('test could not continue due to exception:\n'+e.__class__.__name__+': '+str(e))
+    return wrapped
+
+def run_with_timeout(func, cls, timeout):
+    t = threading.Thread(target=log_exceptions(lambda: func(cls)))
+    t.start()
+    t.join(timeout)
+    if t.is_alive():
+        logger.error('time limit exceeded (timeout: ' + str(timeout)
+                + ' seconds)')
+        for p in cls.processes:
+            p.kill()
+
 
 def eprint(*args, **kwargs):
     kwargs['file'] = sys.stderr
@@ -286,6 +306,8 @@ def parse_args(args):
             +'once prints diffs, twice prints successes, thrice prints all actions.')
     parser.add_argument('-d', '--delay', action='store', type=nonneg_float, default=1,
             help='delay time multiplier.')
+    parser.add_argument('-t', '--timeout', action='store', type=nonneg_float, default=10,
+            help='test case timeout in seconds.')
     parser.add_argument('-s', '--save', action='store_true',
             help='save test input and output streams to testres/.')
     parser.add_argument('--debug', action='store_true',
@@ -295,7 +317,7 @@ def parse_args(args):
     return parser.parse_args(args)
 
 def main():
-    global delay
+    global delay, timeout
     tests = {}
     test_names = []
     for cls in TestCase.__subclasses__():
@@ -309,6 +331,7 @@ def main():
     args = (parse_args(sys.argv[1:]))
     list_ = args.list
     delay = args.delay
+    timeout = args.timeout
     verbose = min(args.verbose, 3)
     debug = args.debug
     save = args.save and not list_
@@ -369,7 +392,7 @@ def main():
         c = cls()
         try:
             if not list_:
-                fn(c) # run the test
+                run_with_timeout(fn, c, timeout) # run the test
             if save: c._save_process_streams('testres/'+name+'/')
         except Exception as e:
             if debug: raise # throw the exception again
